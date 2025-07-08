@@ -1,0 +1,27 @@
+<odoo>
+    <!-- Group Category -->
+    <record id="module_category_customer_support" model="ir.module.category">
+        <field name="name">Customer Support</field>
+        <field name="description">Access rights for Customer Support features</field>
+        <field name="sequence">20</field>
+        <field name="exclusive" eval="1"/>
+    </record>
+
+    <!-- User Group -->
+    <record id="group_customer_support_user" model="res.groups">
+        <field name="name">User</field>
+        <field name="category_id" ref="module_category_customer_support"/>
+    </record>
+
+    <!-- Developer Group -->
+    <record id="group_customer_support_developer" model="res.groups">
+        <field name="name">Developer</field>
+        <field name="category_id" ref="module_category_customer_support"/>
+    </record>
+
+    <!-- Manager Group -->
+    <record id="group_customer_support_manager" model="res.groups">
+        <field name="name">Manager</field>
+        <field name="category_id" ref="module_category_customer_support"/>
+    </record>
+</odoo>

@@ -1,0 +1,20 @@
+<odoo>
+    <!-- Action Window -->
+    
+    <!-- Action -->
+    <record id="action_support_ticket" model="ir.actions.act_window">
+        <field name="name">Support Tickets</field>
+        <field name="res_model">support.ticket</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{}</field>
+    </record>
+
+    <!-- Menu -->
+
+    <menuitem id="menu_support_ticket_root"
+          name="Customer Support"
+          sequence="0"
+          web_icon="nexifai_customer_support,static/description/odoo_icon.png"
+          action="action_support_ticket"
+          groups="nexifai_customer_support.group_customer_support_user,nexifai_customer_support.group_customer_support_developer,nexifai_customer_support.group_customer_support_manager"/>
+</odoo>

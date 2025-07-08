@@ -1,0 +1,48 @@
+<odoo>
+    <!-- list View -->
+    <record id="view_support_ticket_list" model="ir.ui.view">
+        <field name="name">support.ticket.list</field>
+        <field name="model">support.ticket</field>
+        <field name="arch" type="xml">
+            <list string="Support Tickets" default_order="priority desc">
+                <field name="name" string="Ticket Name"/>
+                <field name="client_id" string="Client"/>
+                <field name="priority" string="Priority"/>
+                <field name="state" string="Status"/>
+                <field name="assigned_to" string="Assigned To"/>
+                <field name="create_date" string="Created On"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_support_ticket_form" model="ir.ui.view">
+        <field name="name">support.ticket.form</field>
+        <field name="model">support.ticket</field>
+        <field name="priority" eval="10"/>
+        <field name="arch" type="xml">
+            <form string="Support Ticket">
+                <header>
+                    <field name="state" widget="statusbar"
+                        statusbar_visible="new,in_progress,resolved,closed"
+                        statusbar_colors='{"resolved":"blue","closed":"green"}'/>
+                </header>
+
+                <sheet>
+                    <group string="Ticket Information" col="2">
+                        <field name="name"/>
+                        <field name="client_id"/>
+                        <field name="priority"/>
+                        <field name="assigned_to"/>
+                    </group>
+                    <group string="Details" col="2">
+                        <field name="description" placeholder="Describe the issue here..." nolabel="1" colspan="2"/>
+                        <field name="uat_phase"/>
+                        <field name="test_results"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+</odoo>

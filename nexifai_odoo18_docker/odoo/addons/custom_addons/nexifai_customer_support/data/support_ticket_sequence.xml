@@ -1,0 +1,8 @@
+<odoo>
+    <record id="seq_support_ticket" model="ir.sequence">
+        <field name="name">Support Ticket</field>
+        <field name="code">support.ticket</field>
+        <field name="prefix">SUP%(year)s%(month)s%(day)s-</field>
+        <field name="padding">4</field>
+    </record>
+</odoo>
