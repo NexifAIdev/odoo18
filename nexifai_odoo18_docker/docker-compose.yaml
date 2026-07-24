@@ -1,0 +1,64 @@
+services:
+  # ====== Odoo Web Service ======
+  web:
+    build:
+      context: ./odoo
+      dockerfile: Dockerfile
+    container_name: occ-odoo18-web
+    volumes:
+      - ./odoo/outputs:/odoo/outputs
+      - ./odoo/addons:/odoo/addons
+      - ./odoo/config:/etc/odoo
+      - ./filestore:/var/lib/odoo/filestore
+    expose:
+      - "1780"  # Custom HTTP port
+      - "1782"  # Custom Longpolling port
+    depends_on:
+      - db
+    environment:
+      - DEBUGPY_PORT=5678
+    networks:
+      - odoo-net
+
+  # ====== PostgreSQL Database ======
+  # Credentials match odoo/config/odoo.conf (db_user/db_password) so a fresh
+  # database volume initializes with the user Odoo expects.
+  db:
+    image: postgres:13
+    container_name: occ-odoo18-db
+    restart: always
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odooadmin
+      - POSTGRES_PASSWORD=odoomgr
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - db-data:/var/lib/postgresql/data/pgdata
+    networks:
+      - odoo-net
+
+  # ====== Nginx Proxy Manager (Reverse Proxy & SSL) ======
+  npm_app:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: occ-nginx
+    restart: always
+    ports:
+      - '80:80'    # HTTP traffic
+      - '443:443'  # HTTPS traffic
+      - '81:81'    # Admin UI: http://yourserverip:81
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    networks:
+      - odoo-net
+
+# ====== Volumes ======
+volumes:
+  db-data:
+  npm_data:
+  npm_letsencrypt:
+
+# ====== Network ======
+networks:
+  odoo-net:
+    driver: bridge
