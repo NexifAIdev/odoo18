@@ -1,0 +1,146 @@
+# Save this file as: .github/workflows/deploy.yml  in the NexifAIdev/odoo18 repo
+#
+# CI: builds the Docker image (and lints custom addons if any exist) on every
+#     push and pull request.
+#
+# CD (staged): on push to main only -
+#   1. deploy-staging  - joins Tailscale, SSHes in, brings up the STAGING stack
+#      (docker-compose.yaml + docker-compose.staging.yml, project "odoo18-staging",
+#      isolated containers/volumes/network, web bound to 127.0.0.1:1791 only) and
+#      runs a health check against it. No approval needed - this is a throwaway
+#      environment on the same box.
+#   2. deploy-production - only starts if deploy-staging succeeds. Targets the
+#      "production" GitHub Environment, which has required reviewers configured -
+#      it pauses and waits for manual approval (Actions tab -> the running
+#      workflow -> Review deployments) before it touches the real stack.
+#
+# Repo layout note: the Dockerfile and addons live under
+# nexifai_odoo18_docker/odoo/ (not directly under nexifai_odoo18_docker/ as the
+# repo's README implies) - verified against the real file tree.
+#
+# --- Required GitHub repo secrets (Settings -> Secrets and variables -> Actions) ---
+#   TS_OAUTH_CLIENT_ID       Tailscale OAuth client ID   (Tailscale admin -> Settings -> OAuth clients)
+#   TS_OAUTH_CLIENT_SECRET   Tailscale OAuth client secret (same client, needs "Devices: Write" scope)
+#   DEPLOY_HOST              Tailscale hostname/IP of the droplet, e.g. nexifai-ops or its 100.x.x.x IP
+#   DEPLOY_USER              SSH user on the droplet (e.g. root or a deploy user)
+#   DEPLOY_SSH_KEY           Private key (PEM) for DEPLOY_USER, paste the full contents
+#   DEPLOY_PATH              Absolute path to the PRODUCTION repo checkout on the droplet,
+#                            e.g. /root/odoo18   (must already contain a git clone of this repo)
+#   STAGING_PATH             Absolute path to the STAGING repo checkout on the droplet,
+#                            e.g. /root/odoo18-staging (must already contain a separate
+#                            git clone of this repo - kept independent from DEPLOY_PATH
+#                            so staging can be rebuilt/reset without touching production)
+#
+# Notes:
+# - The runner reaches the droplet over Tailscale, so no public SSH port needs to be open.
+# - Both DEPLOY_PATH and STAGING_PATH must already be `git clone`d on the server once,
+#   manually, before this workflow's first run (it only runs `git pull`, it does not clone).
+# - Production's nginx-proxy-manager already owns host ports 80/443/81, so the staging
+#   compose override disables its own npm_app entirely and exposes the web container
+#   directly on 127.0.0.1:1791 for the health check.
+
+name: CI/CD - odoo18
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    name: Build & lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Odoo 18 image (validates Dockerfile)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./nexifai_odoo18_docker/odoo
+          push: false
+          load: true
+          tags: odoo18-ci:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Lint custom addons (if any Python files exist)
+        run: |
+          if find nexifai_odoo18_docker/odoo/addons/custom_addons -name "*.py" 2>/dev/null | grep -q .; then
+            pip install flake8
+            flake8 nexifai_odoo18_docker/odoo/addons/custom_addons --max-line-length=160 || true
+          else
+            echo "No custom addon Python files yet - skipping lint."
+          fi
+
+  deploy-staging:
+    name: Deploy to staging
+    needs: build-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy + health-check staging over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd "${{ secrets.STAGING_PATH }}"
+            git pull origin main
+            cd nexifai_odoo18_docker
+            docker compose -f docker-compose.yaml -f docker-compose.staging.yml -p odoo18-staging up -d --build
+            docker image prune -f
+
+            echo "Waiting for staging Odoo to become healthy..."
+            for i in $(seq 1 30); do
+              if curl -sf -o /dev/null http://127.0.0.1:1791/web/login; then
+                echo "Staging is healthy."
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "Staging did not become healthy in time - failing before production."
+            docker compose -p odoo18-staging logs --tail=100 web || true
+            exit 1
+
+  deploy-production:
+    name: Deploy to production (nexifai-ops)
+    needs: [build-test, deploy-staging]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git pull origin main
+            cd nexifai_odoo18_docker
+            docker compose up -d --build
+            docker image prune -f
