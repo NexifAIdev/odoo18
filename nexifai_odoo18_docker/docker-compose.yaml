@@ -1,3 +1,11 @@
+# Credentials come from an untracked .env file next to this compose file
+# (nexifai_odoo18_docker/.env on the server), never from git:
+#   ODOO_DB_USER=...
+#   ODOO_DB_PASSWORD=...
+#   ODOO_ADMIN_PASSWD=...
+# The web command renders odoo/config/odoo.conf.template with those values at
+# container start, so no secrets live in the repository.
+
 services:
   # ====== Odoo Web Service ======
   web:
@@ -17,11 +25,21 @@ services:
       - db
     environment:
       - DEBUGPY_PORT=5678
+      - ODOO_DB_USER=${ODOO_DB_USER:?set in nexifai_odoo18_docker/.env}
+      - ODOO_DB_PASSWORD=${ODOO_DB_PASSWORD:?set in nexifai_odoo18_docker/.env}
+      - ODOO_ADMIN_PASSWD=${ODOO_ADMIN_PASSWD:?set in nexifai_odoo18_docker/.env}
+      - ODOO_RC=/tmp/odoo.conf
+    command: >
+      bash -c 'sed -e "s|__DB_USER__|$${ODOO_DB_USER}|g"
+      -e "s|__DB_PASSWORD__|$${ODOO_DB_PASSWORD}|g"
+      -e "s|__ADMIN_PASSWD__|$${ODOO_ADMIN_PASSWD}|g"
+      /etc/odoo/odoo.conf.template > /tmp/odoo.conf
+      && exec /entrypoint.sh odoo -c /tmp/odoo.conf'
     networks:
       - odoo-net
 
   # ====== PostgreSQL Database ======
-  # Credentials match odoo/config/odoo.conf (db_user/db_password) so a fresh
+  # Credentials match what Odoo receives via odoo.conf.template so a fresh
   # database volume initializes with the user Odoo expects.
   db:
     image: postgres:13
@@ -29,8 +47,8 @@ services:
     restart: always
     environment:
       - POSTGRES_DB=postgres
-      - POSTGRES_USER=odooadmin
-      - POSTGRES_PASSWORD=odoomgr
+      - POSTGRES_USER=${ODOO_DB_USER:?set in nexifai_odoo18_docker/.env}
+      - POSTGRES_PASSWORD=${ODOO_DB_PASSWORD:?set in nexifai_odoo18_docker/.env}
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - db-data:/var/lib/postgresql/data/pgdata
