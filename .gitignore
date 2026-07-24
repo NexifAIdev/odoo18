@@ -1,0 +1,5 @@
+# Server-side secrets - never commit
+nexifai_odoo18_docker/.env
+
+# OS cruft
+.DS_Store
