@@ -8,8 +8,8 @@
 # (127.0.0.1:1791). Staging must not start a second nginx-proxy-manager
 # (production already owns host ports 80/443/81), so npm_app is disabled here.
 #
-# The db credentials below match odoo/config/odoo.conf (db_user/db_password) so a
-# fresh staging database initializes with the user Odoo expects.
+# DB credentials come from nexifai_odoo18_docker/.env on the server (untracked)
+# via the base docker-compose.yaml - nothing secret is defined here.
 #
 # Health check (used by CI): curl -f http://127.0.0.1:1791/web/login
 
@@ -21,9 +21,6 @@ services:
 
   db:
     container_name: occ-odoo18-db-staging
-    environment:
-      - POSTGRES_USER=odooadmin
-      - POSTGRES_PASSWORD=odoomgr
 
   npm_app:
     profiles: ["proxy-disabled-in-staging"]
