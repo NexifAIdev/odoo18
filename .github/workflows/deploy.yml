@@ -1,0 +1,22 @@
+# CI/CD for odoo18 - thin caller of the shared pipeline.
+# The actual pipeline lives in NexifAIdev/ci-templates (odoo-ci-cd.yml):
+# build & lint -> auto staging deploy + health check -> approval-gated production sync.
+
+name: CI/CD - odoo18
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pipeline:
+    uses: NexifAIdev/ci-templates/.github/workflows/odoo-ci-cd.yml@main
+    with:
+      docker_context: ./nexifai_odoo18_docker/odoo
+      addons_dir: nexifai_odoo18_docker/odoo/addons/custom_addons
+      compose_dir: nexifai_odoo18_docker
+      health_url: http://127.0.0.1:1791/web/login
+      staging_project: odoo18-staging
+    secrets: inherit
