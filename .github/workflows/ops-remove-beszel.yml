@@ -1,0 +1,48 @@
+# Decommission Beszel on the ops droplet now that Grafana covers server metrics.
+#
+# Removes the hub + agent containers, the tailnet proxy on :8445 and the images.
+# The compose file at /opt/stacks/beszel/compose.yaml and the data volume are
+# LEFT IN PLACE, so restoring is: cd /opt/stacks/beszel && docker compose up -d
+
+name: Ops - decommission Beszel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  remove:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+
+      - name: Remove Beszel from nexifai-ops
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY_NEXIFAI_OPS }}
+          command_timeout: 10m
+          script: |
+            set -e
+            echo '===== BEFORE ====='
+            free -m | head -2
+
+            echo '===== stop + remove containers ====='
+            docker rm -f beszel-hub beszel-agent 2>/dev/null || true
+
+            echo '===== remove tailnet proxy on 8445 ====='
+            tailscale serve --https=8445 off 2>/dev/null || true
+            tailscale serve status 2>&1 | head -12 || true
+
+            echo '===== remove images ====='
+            docker rmi henrygd/beszel:latest henrygd/beszel-agent:latest 2>/dev/null || true
+
+            echo '===== AFTER ====='
+            docker ps --format '{{.Names}}' | sort
+            free -m | head -2
+            echo 'Beszel decommissioned on ops (compose file + volume kept for restore).'
