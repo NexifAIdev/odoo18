@@ -3,7 +3,7 @@
 # Bash script to update PostgreSQL port inside Docker container
 
 # Set variables
-container_name="nexifai-odoo18-db"
+container_name="odoo18-db"   # must match container_name in docker-compose.yaml
 pg_config_file="/var/lib/postgresql/data/pgdata/postgresql.conf"
 pg_data_dir="/var/lib/postgresql/data/pgdata"
 new_port="5434"
