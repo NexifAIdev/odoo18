@@ -15,12 +15,12 @@
 
 services:
   web:
-    container_name: occ-odoo18-web-staging
+    container_name: odoo18-staging-web
     ports:
       - "127.0.0.1:1791:1780"
 
   db:
-    container_name: occ-odoo18-db-staging
+    container_name: odoo18-staging-db
 
   npm_app:
     profiles: ["proxy-disabled-in-staging"]
