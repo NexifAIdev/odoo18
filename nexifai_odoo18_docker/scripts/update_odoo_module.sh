@@ -4,7 +4,7 @@
 # Purpose: Update Odoo modules using a saved list or add new ones dynamically
 # Author: Jasper-ready 😊
 
-CONTAINER_NAME="nexifai-odoo18-web"
+CONTAINER_NAME="odoo18-web"   # must match container_name in docker-compose.yaml
 DB_NAME="nexifai_odoo18_testdb06"
 MODULE_FILE="modules_to_update.txt"
 
