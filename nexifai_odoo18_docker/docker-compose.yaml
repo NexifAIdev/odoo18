@@ -12,7 +12,7 @@ services:
     build:
       context: ./odoo
       dockerfile: Dockerfile
-    container_name: odoo18-web
+    container_name: nexifai-odoo18-web
     volumes:
       - ./odoo/outputs:/odoo/outputs
       - ./odoo/addons:/odoo/addons
@@ -43,7 +43,7 @@ services:
   # database volume initializes with the user Odoo expects.
   db:
     image: postgres:13
-    container_name: odoo18-db
+    container_name: nexifai-odoo18-db
     restart: always
     environment:
       - POSTGRES_DB=postgres
@@ -56,7 +56,7 @@ services:
       - odoo-net
 
   # ====== Nginx Proxy Manager (Reverse Proxy & SSL) ======
-  npm_app:
+  container_name: nexifai-odoo18-nginx
     image: 'jc21/nginx-proxy-manager:latest'
     container_name: odoo18-nginx
     restart: always
